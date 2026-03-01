@@ -1,0 +1,11 @@
+Package: gradeUI
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.0
+Authors@R: person("Alex", "Arkilanian", email = "a.arkilanian@gmail.com", role = c("aut", "cre"),
+    comment = c(ORCID = "https://orcid.org/0000-0002-5427-2867"))
+Description: More about what it does (maybe more than one line).
+    Continuation lines should be indented.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
