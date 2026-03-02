@@ -1,9 +1,9 @@
-##### Other resources #####
+##### Resources #####
 
 source("R/cards.R")
+rubric <- read.csv("ex_rubric.csv")
 
-
-##### Main #####
+##### UI #####
 
 ui <- bslib::page_sidebar(
 
@@ -121,6 +121,8 @@ ui <- bslib::page_sidebar(
     )
   )
 )
+
+##### Server #####
 
 server <- function(input, output){
 
