@@ -29,64 +29,64 @@ ui <- bslib::page_sidebar(
 
       // Rubric selection
       if (e.key === '1') {
-        Shiny.setInputValue('key_1', Math.random());
+        Shiny.setInputValue('key_rubric', '1', {priority: 'event'});
       }
       if (e.key === 'Digit1') {
-        Shiny.setInputValue('key_1', Math.random());
+        Shiny.setInputValue('key_rubric', '1', {priority: 'event'});
       }
       if (e.key === '2') {
-        Shiny.setInputValue('key_2', Math.random());
+        Shiny.setInputValue('key_rubric', '2', {priority: 'event'});
       }
       if (e.key === 'Digit2') {
-        Shiny.setInputValue('key_2', Math.random());
+        Shiny.setInputValue('key_rubric', '2', {priority: 'event'});
       }
       if (e.key === '3') {
-        Shiny.setInputValue('key_3', Math.random());
+        Shiny.setInputValue('key_rubric', '3', {priority: 'event'});
       }
       if (e.key === 'Digit3') {
-        Shiny.setInputValue('key_3', Math.random());
+        Shiny.setInputValue('key_rubric', '3', {priority: 'event'});
       }
       if (e.key === '4') {
-        Shiny.setInputValue('key_4', Math.random());
+        Shiny.setInputValue('key_rubric', '4', {priority: 'event'});
       }
       if (e.key === 'Digit4') {
-        Shiny.setInputValue('key_4', Math.random());
+        Shiny.setInputValue('key_rubric', '4', {priority: 'event'});
       }
       if (e.key === '5') {
-        Shiny.setInputValue('key_5', Math.random());
+        Shiny.setInputValue('key_rubric', '5', {priority: 'event'});
       }
       if (e.key === 'Digit5') {
-        Shiny.setInputValue('key_5', Math.random());
+        Shiny.setInputValue('key_rubric', '5', {priority: 'event'});
       }
       if (e.key === '6') {
-        Shiny.setInputValue('key_6', Math.random());
+        Shiny.setInputValue('key_rubric', '6', {priority: 'event'});
       }
       if (e.key === 'Digit6') {
-        Shiny.setInputValue('key_6', Math.random());
+        Shiny.setInputValue('key_rubric', '6', {priority: 'event'});
       }
       if (e.key === '7') {
-        Shiny.setInputValue('key_7', Math.random());
+        Shiny.setInputValue('key_rubric', '7', {priority: 'event'});
       }
       if (e.key === 'Digit7') {
-        Shiny.setInputValue('key_7', Math.random());
+        Shiny.setInputValue('key_rubric', '7', {priority: 'event'});
       }
       if (e.key === '8') {
-        Shiny.setInputValue('key_8', Math.random());
+        Shiny.setInputValue('key_rubric', '8', {priority: 'event'});
       }
       if (e.key === 'Digit8') {
-        Shiny.setInputValue('key_8', Math.random());
+        Shiny.setInputValue('key_rubric', '8', {priority: 'event'});
       }
       if (e.key === '9') {
-        Shiny.setInputValue('key_9', Math.random());
+        Shiny.setInputValue('key_rubric', '9', {priority: 'event'});
       }
       if (e.key === 'Digit9') {
-        Shiny.setInputValue('key_9', Math.random());
+        Shiny.setInputValue('key_rubric', '9', {priority: 'event'});
       }
       if (e.key === '0') {
-        Shiny.setInputValue('key_0', Math.random());
+        Shiny.setInputValue('key_rubric', '0', {priority: 'event'});
       }
       if (e.key === 'Digit0') {
-        Shiny.setInputValue('key_0', Math.random());
+        Shiny.setInputValue('key_rubric', '0', {priority: 'event'});
       }
 
       // Custom rubric
@@ -192,6 +192,34 @@ server <- function(input, output){
     } else{
       rv$s_index <- rv$s_index - 1
     }
+  })
+
+  # Get rubric from keyboard
+  observeEvent(input$key_rubric, {
+
+    # Get selected rubric key and match
+    selected <- input$rubric_key
+    row <- which(rubric$key == key_pressed)
+
+    # If not a rubric item return nothing
+    if(length(row) == 0) return()
+
+    # Get deduction and add/remove depending on current choice
+    ded <- rubric$deduction[row]
+    cur_rubric <- input$rubric_selections
+    if (ded %in% cur_rubric) {
+      new_selection <- setdiff(current, deduction_value)
+    } else {
+      new_selection <- c(current, deduction_value)
+    }
+
+    # Update checkboxes
+    updateCheckboxGroupInput(
+      session,
+      "rubric_select",
+      selected = new_selection
+    )
+
   })
 
   output$auto_comments <- renderUI({
