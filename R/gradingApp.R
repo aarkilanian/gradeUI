@@ -19,6 +19,14 @@ ui <- bslib::page_sidebar(
         Shiny.setInputValue('key_prev', Math.random());
       }
 
+      // Student navigation
+      if (e.key === 'ArrowUp') {
+        Shiny.setInputValue('key_nexts', Math.random());
+      }
+      if (e.key === 'ArrowDown') {
+        Shiny.setInputValue('key_prevs', Math.random());
+      }
+
       // Rubric selection
       if (e.key === '1') {
         Shiny.setInputValue('key_1', Math.random());
@@ -92,7 +100,7 @@ ui <- bslib::page_sidebar(
   theme = my_theme,
 
   # Title
-  shiny::titlePanel(shiny::renderText("student_question")),
+  shiny::titlePanel(shiny::htmlOutput("student_question")),
 
   # Sidebar content
   sidebar = bslib::sidebar(card_code, width = "40%"),
@@ -128,16 +136,22 @@ server <- function(input, output){
   )
 
   # Get current student and question
-  output$student_question <- renderText({
-    paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index)
+  output$student_question <- renderUI({
+    HTML(paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index))
   })
 
   # Change question (forward)
   observeEvent(input$key_next, {
-    # If at end of questions go to next student
-    if(rv$q_index == tot_questions){
-      rv$q_index <- 1
-      rv$s_index <- rv$s_index + 1
+    # If at end of questions
+    if(rv$q_index == rv$tot_question){
+      # If at last student, don't change
+      if(rv$s_index == rv$tot_student){
+        rv$q_index <- rv$q_index
+      # If not go to next student
+      } else{
+        rv$q_index <- 1
+        rv$s_index <- rv$s_index + 1
+      }
     # Otherwise increment question
     } else{
       rv$q_index <-  rv$q_index + 1
@@ -148,10 +162,35 @@ server <- function(input, output){
   observeEvent(input$key_prev, {
     # If at start of questions go to previous student
     if(rv$q_index == 1){
-      rv$q_index <- tot_questions
-      rv$s_index <- rv$s_index - 1
+      # If at first student, don't change
+      if(rv$s_index == 1){
+        rv$q_index <- rv$q_index
+      } else{
+        rv$q_index <- rv$tot_question
+        rv$s_index <- rv$s_index - 1
+      }
     } else{
       rv$q_index <-  rv$q_index - 1
+    }
+  })
+
+  # Change student (forward)
+  observeEvent(input$key_nexts, {
+    # If at end of students, don't change
+    if(rv$s_index == rv$tot_student){
+      rv$s_index <- rv$s_index
+    } else{
+      rv$s_index <- rv$s_index + 1
+    }
+  })
+
+  # Change student (backwards)
+  observeEvent(input$key_prevs, {
+    # If at start of students, don't change
+    if(rv$s_index == 1){
+      rv$s_index <- rv$s_index
+    } else{
+      rv$s_index <- rv$s_index - 1
     }
   })
 
