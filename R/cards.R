@@ -25,7 +25,13 @@ card_solution <- bslib::card(
   bslib::card_header("Solution output"), "test")
 
 card_rubric <- bslib::card(
-  bslib::card_header("Rubric"), "test")
+  bslib::card_header("Rubric"),
+  checkboxGroupInput(
+    "rubric_select",
+    "Rubric:",
+    choices = setNames(rubric$key,
+                       paste0(rubric$comment, " (-", rubric$deduction, ")"))
+  ))
 
 card_comment <- bslib::card(
   bslib::card_header("Autograder comments"), class = "auto-card", "test")
