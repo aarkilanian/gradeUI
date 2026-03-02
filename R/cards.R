@@ -1,3 +1,5 @@
+source("R/theme.R")
+
 card_progress <- bslib::card(
   shiny::htmlOutput("progress")
 )
@@ -14,8 +16,13 @@ card_code <- bslib::card(
 )
 
 card_student <- bslib::card(
-  bslib::card_header("Student output"), "test",
+  bslib::card_header("Student output"), "test")
+
+card_solution <- bslib::card(
   bslib::card_header("Solution output"), "test")
 
 card_rubric <- bslib::card(
   bslib::card_header("Rubric"), "test")
+
+card_comment <- bslib::card(
+  bslib::card_header("Autograder comments"), class = "auto-card", "test")
