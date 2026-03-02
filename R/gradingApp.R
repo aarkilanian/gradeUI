@@ -2,17 +2,111 @@
 
 source("R/cards.R")
 
+
 ##### Main #####
 
 ui <- bslib::page_sidebar(
+
+  # Add keyboard shortcuts
+  tags$script(HTML("
+    document.addEventListener('keydown', function(e) {
+
+      // Question navigation
+      if (e.key === 'ArrowRight') {
+        Shiny.setInputValue('key_next', Math.random());
+      }
+      if (e.key === 'ArrowLeft') {
+        Shiny.setInputValue('key_prev', Math.random());
+      }
+
+      // Rubric selection
+      if (e.key === '1') {
+        Shiny.setInputValue('key_1', Math.random());
+      }
+      if (e.key === 'Digit1') {
+        Shiny.setInputValue('key_1', Math.random());
+      }
+      if (e.key === '2') {
+        Shiny.setInputValue('key_2', Math.random());
+      }
+      if (e.key === 'Digit2') {
+        Shiny.setInputValue('key_2', Math.random());
+      }
+      if (e.key === '3') {
+        Shiny.setInputValue('key_3', Math.random());
+      }
+      if (e.key === 'Digit3') {
+        Shiny.setInputValue('key_3', Math.random());
+      }
+      if (e.key === '4') {
+        Shiny.setInputValue('key_4', Math.random());
+      }
+      if (e.key === 'Digit4') {
+        Shiny.setInputValue('key_4', Math.random());
+      }
+      if (e.key === '5') {
+        Shiny.setInputValue('key_5', Math.random());
+      }
+      if (e.key === 'Digit5') {
+        Shiny.setInputValue('key_5', Math.random());
+      }
+      if (e.key === '6') {
+        Shiny.setInputValue('key_6', Math.random());
+      }
+      if (e.key === 'Digit6') {
+        Shiny.setInputValue('key_6', Math.random());
+      }
+      if (e.key === '7') {
+        Shiny.setInputValue('key_7', Math.random());
+      }
+      if (e.key === 'Digit7') {
+        Shiny.setInputValue('key_7', Math.random());
+      }
+      if (e.key === '8') {
+        Shiny.setInputValue('key_8', Math.random());
+      }
+      if (e.key === 'Digit8') {
+        Shiny.setInputValue('key_8', Math.random());
+      }
+      if (e.key === '9') {
+        Shiny.setInputValue('key_9', Math.random());
+      }
+      if (e.key === 'Digit9') {
+        Shiny.setInputValue('key_9', Math.random());
+      }
+      if (e.key === '0') {
+        Shiny.setInputValue('key_0', Math.random());
+      }
+      if (e.key === 'Digit0') {
+        Shiny.setInputValue('key_0', Math.random());
+      }
+
+      // Custom rubric
+      if (e.key === 'c') {
+        Shiny.setInputValue('key_custom', Math.random());
+      }
+    });
+  ")),
+
+  # Add theme
+  theme = my_theme,
+
   # Title
-  shiny::titlePanel("Title"),
+  shiny::titlePanel(shiny::renderText("student_question")),
+
   # Sidebar content
   sidebar = bslib::sidebar(card_code, width = "40%"),
+
   # Main content
-  card_student,
+  layout_column_wrap(
+    width = 1/2,
+    card_student,
+    card_solution
+  ),
+  uiOutput("auto_comments"),
   card_rubric,
-  # New footer
+
+  # Footer
   fluidRow(
     column(width = 6, card_progress
     ), column(width = 6, card_shortcuts
@@ -28,8 +122,44 @@ server <- function(input, output){
     tot_student = 20,
     tot_question = 32,
     q_index = 1,
-    grades = list()
+    s_index = 1,
+    grades = list(),
+    autocomment = c("Yes this is an error.")
   )
+
+  # Get current student and question
+  output$student_question <- renderText({
+    paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index)
+  })
+
+  # Change question (forward)
+  observeEvent(input$key_next, {
+    # If at end of questions go to next student
+    if(rv$q_index == tot_questions){
+      rv$q_index <- 1
+      rv$s_index <- rv$s_index + 1
+    # Otherwise increment question
+    } else{
+      rv$q_index <-  rv$q_index + 1
+    }
+  })
+
+  # Change question (backwards)
+  observeEvent(input$key_prev, {
+    # If at start of questions go to previous student
+    if(rv$q_index == 1){
+      rv$q_index <- tot_questions
+      rv$s_index <- rv$s_index - 1
+    } else{
+      rv$q_index <-  rv$q_index - 1
+    }
+  })
+
+  output$auto_comments <- renderUI({
+    if(!is.na(rv$autocomment[rv$q_index])){
+      card_comment
+    }
+  })
 
   output$progress <- shiny::renderUI({
     div(
