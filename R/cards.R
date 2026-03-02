@@ -1,5 +1,8 @@
-source("R/theme.R")
+# Add auto-card theme
+my_theme <- bs_theme() |>
+  bs_add_rules(".auto-card { border-color: #FF7878 ; }")
 
+##### Cards #####
 card_progress <- bslib::card(
   shiny::htmlOutput("progress")
 )
