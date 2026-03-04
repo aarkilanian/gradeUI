@@ -8,93 +8,7 @@ rubric <- read.csv("ex_rubric.csv")
 ui <- bslib::page_sidebar(
 
   # Add keyboard shortcuts
-  tags$script(HTML("
-    document.addEventListener('keydown', function(e) {
-
-      // Question navigation
-      if (e.key === 'ArrowRight') {
-        Shiny.setInputValue('key_next', Math.random());
-      }
-      if (e.key === 'ArrowLeft') {
-        Shiny.setInputValue('key_prev', Math.random());
-      }
-
-      // Student navigation
-      if (e.key === 'ArrowUp') {
-        Shiny.setInputValue('key_nexts', Math.random());
-      }
-      if (e.key === 'ArrowDown') {
-        Shiny.setInputValue('key_prevs', Math.random());
-      }
-
-      // Rubric selection
-      if (e.key === '1') {
-        Shiny.setInputValue('key_rubric', '1', {priority: 'event'});
-      }
-      if (e.key === 'Digit1') {
-        Shiny.setInputValue('key_rubric', '1', {priority: 'event'});
-      }
-      if (e.key === '2') {
-        Shiny.setInputValue('key_rubric', '2', {priority: 'event'});
-      }
-      if (e.key === 'Digit2') {
-        Shiny.setInputValue('key_rubric', '2', {priority: 'event'});
-      }
-      if (e.key === '3') {
-        Shiny.setInputValue('key_rubric', '3', {priority: 'event'});
-      }
-      if (e.key === 'Digit3') {
-        Shiny.setInputValue('key_rubric', '3', {priority: 'event'});
-      }
-      if (e.key === '4') {
-        Shiny.setInputValue('key_rubric', '4', {priority: 'event'});
-      }
-      if (e.key === 'Digit4') {
-        Shiny.setInputValue('key_rubric', '4', {priority: 'event'});
-      }
-      if (e.key === '5') {
-        Shiny.setInputValue('key_rubric', '5', {priority: 'event'});
-      }
-      if (e.key === 'Digit5') {
-        Shiny.setInputValue('key_rubric', '5', {priority: 'event'});
-      }
-      if (e.key === '6') {
-        Shiny.setInputValue('key_rubric', '6', {priority: 'event'});
-      }
-      if (e.key === 'Digit6') {
-        Shiny.setInputValue('key_rubric', '6', {priority: 'event'});
-      }
-      if (e.key === '7') {
-        Shiny.setInputValue('key_rubric', '7', {priority: 'event'});
-      }
-      if (e.key === 'Digit7') {
-        Shiny.setInputValue('key_rubric', '7', {priority: 'event'});
-      }
-      if (e.key === '8') {
-        Shiny.setInputValue('key_rubric', '8', {priority: 'event'});
-      }
-      if (e.key === 'Digit8') {
-        Shiny.setInputValue('key_rubric', '8', {priority: 'event'});
-      }
-      if (e.key === '9') {
-        Shiny.setInputValue('key_rubric', '9', {priority: 'event'});
-      }
-      if (e.key === 'Digit9') {
-        Shiny.setInputValue('key_rubric', '9', {priority: 'event'});
-      }
-      if (e.key === '0') {
-        Shiny.setInputValue('key_rubric', '0', {priority: 'event'});
-      }
-      if (e.key === 'Digit0') {
-        Shiny.setInputValue('key_rubric', '0', {priority: 'event'});
-      }
-
-      // Custom rubric
-      if (e.key === 'c') {
-        Shiny.setInputValue('key_custom', Math.random());
-      }
-    });
-  ")),
+  tags$script(includeHTML("key_shortcuts.html")),
 
   # Add theme
   theme = my_theme,
@@ -124,7 +38,7 @@ ui <- bslib::page_sidebar(
 
 ##### Server #####
 
-server <- function(input, output){
+server <- function(input, output, session){
 
   # Set reactive values
   rv <- shiny::reactiveValues(
@@ -137,11 +51,134 @@ server <- function(input, output){
     autocomment = c("Yes this is an error.")
   )
 
+  # Set current rubric selection
+  cur_rub_sel <- reactiveVal(NULL)
+
   # Get current student and question
   output$student_question <- renderUI({
     HTML(paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index))
   })
 
+  # RUBRIC SETUP
+  # Render checkboxes for current question
+  output$rubric_checkbox <- renderUI({
+    choices <- get_choices()
+    checkboxGroupInput("rubric_select", "Rubric:", choices = choices)
+  })
+
+  # Get choices for current question from rubric csv
+  get_choices <- reactive({
+    # Subset rubric to current question
+    sub_rubric <- rubric[rubric$question == rv$q_index,]
+    choices <- setNames(sub_rubric$key,
+                        paste0(sub_rubric$key,
+                               ". ",
+                               sub_rubric$comment,
+                               " (-",
+                               sub_rubric$deduction,
+                               ")"))
+    return(choices)
+  })
+
+  # Capture rubric choice from keyboard
+  observeEvent(list(input$key_rubric, input$rubric_select), {
+
+    if(!is.null(input$key_rubric)){
+      selected <- input$key_rubric
+    } else{
+      if(input$rubric_select == cur_rub_sel()){
+        return()
+      }
+      else{
+        selected <- input$rubric_select
+      }
+    }
+
+    # Find corresponding rubric item
+    rub_row <- which(rubric$question == rv$q_index & rubric$key == selected)
+    # If not a rubric item return nothing
+    if(length(rub_row) == 0) return()
+
+    # Get previous selections
+    prev_sel <- cur_rub_sel()
+
+    # If no previous value
+    if(is.null(prev_sel)){
+      new_selection <- selected
+    } else if (any(c(0,1) %in% prev_sel) | any(c(0,1) %in% selected)){
+      new_selection <- selected
+    } else{
+      if(selected %in% prev_sel){
+        # Remove selection if already checked
+        new_selection <- setdiff(prev_sel, selected)
+      } else{
+        # Otherwise add to selections
+        new_selection <- c(selected, prev_sel)
+      }
+    }
+
+    # Update checkboxes
+    updateCheckboxGroupInput(
+      session,
+      "rubric_select",
+      selected = new_selection
+    )
+
+    # Update stored value
+    cur_rub_sel(new_selection)
+
+  })
+
+  # SCORE CALCULATION
+  output$score_display <- renderText({
+    paste("Question score: ", score())
+  })
+
+  score <- reactive({
+    # Calculate total question marks
+    total_marks <- rubric[rubric$question == rv$q_index,]
+    total_marks <- total_marks[1,5]
+    # Get selected rubric items
+    selected <- input$rubric_select
+    if(is.null(selected)) return()
+    sub_rubric <- rubric[rubric$question == rv$q_index,]
+    # Get and sum deductions
+    selected_ded <- sub_rubric[sub_rubric$key %in% selected,]
+    selected_ded <- selected_ded$deduction
+    return(total_marks - sum(selected_ded))
+  })
+
+  # CARD LAYOUTS
+  output$auto_comments <- renderUI({
+    if(!is.na(rv$autocomment[rv$q_index])){
+      card_comment
+    }
+  })
+
+  output$progress <- shiny::renderUI({
+    div(
+      HTML("<p><b>Progress:</b> "),
+      HTML(paste0(rv$graded/rv$tot_student*100), " % complete<br>"),
+      HTML(paste0(rv$tot_student - rv$graded), " students remaining<br>"),
+      HTML(paste0(rv$tot_student*rv$tot_question - length(rv$grades), " questions remaining")),
+      HTML("</p>")
+    )
+  })
+
+  output$shortcuts <- shiny::renderUI({
+    div(
+      HTML("<p><b>Shortcuts</b><br>"),
+      shiny::icon("circle-right"),
+      HTML(" (next question)<br>"),
+      shiny::icon("circle-left"),
+      HTML(" (previous question)<br>"),
+      shiny::icon("arrow-up-1-9"),
+      HTML(" (select rubric items)<br>"),
+      HTML("</p>"),
+    )
+  })
+
+  # NAVIGATION
   # Change question (forward)
   observeEvent(input$key_next, {
     # If at end of questions
@@ -149,12 +186,12 @@ server <- function(input, output){
       # If at last student, don't change
       if(rv$s_index == rv$tot_student){
         rv$q_index <- rv$q_index
-      # If not go to next student
+        # If not go to next student
       } else{
         rv$q_index <- 1
         rv$s_index <- rv$s_index + 1
       }
-    # Otherwise increment question
+      # Otherwise increment question
     } else{
       rv$q_index <-  rv$q_index + 1
     }
@@ -196,62 +233,6 @@ server <- function(input, output){
     }
   })
 
-  # Get rubric from keyboard
-  observeEvent(input$key_rubric, {
-
-    # Get selected rubric key and match
-    selected <- input$rubric_key
-    row <- which(rubric$key == key_pressed)
-
-    # If not a rubric item return nothing
-    if(length(row) == 0) return()
-
-    # Get deduction and add/remove depending on current choice
-    ded <- rubric$deduction[row]
-    cur_rubric <- input$rubric_selections
-    if (ded %in% cur_rubric) {
-      new_selection <- setdiff(current, deduction_value)
-    } else {
-      new_selection <- c(current, deduction_value)
-    }
-
-    # Update checkboxes
-    updateCheckboxGroupInput(
-      session,
-      "rubric_select",
-      selected = new_selection
-    )
-
-  })
-
-  output$auto_comments <- renderUI({
-    if(!is.na(rv$autocomment[rv$q_index])){
-      card_comment
-    }
-  })
-
-  output$progress <- shiny::renderUI({
-    div(
-      HTML("<p><b>Progress:</b> "),
-      HTML(paste0(rv$graded/rv$tot_student*100), " % complete<br>"),
-      HTML(paste0(rv$tot_student - rv$graded), " students remaining<br>"),
-      HTML(paste0(rv$tot_student*rv$tot_question - length(rv$grades), " questions remaining")),
-      HTML("</p>")
-    )
-  })
-
-  output$shortcuts <- shiny::renderUI(
-    div(
-      HTML("<p><b>Shortcuts</b><br>"),
-      shiny::icon("circle-right"),
-      HTML(" (next question)<br>"),
-      shiny::icon("circle-left"),
-      HTML(" (previous question)<br>"),
-      shiny::icon("arrow-up-1-9"),
-      HTML(" (select rubric items)<br>"),
-      HTML("</p>"),
-    )
-  )
 }
 
 run_grading <- function(){
