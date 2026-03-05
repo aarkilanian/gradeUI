@@ -19,7 +19,7 @@ example_calls <- parse(example_sub)
 # Write example final submissions list
 example_student1 <- list(
   studentID = c("aark"),
-  auto_comments = c(NA, NA, NA, "Could not parse", "Answer equivalent"), # Check, if not NA (wrong) display comment and check solutions and grade
+  auto_comments = c("", "", "", "Could not parse", "Answer equivalent"), # Check, if not NA (wrong) display comment and check solutions and grade
   grades = c(NA, NA, NA, NA, 1), # Pre-populated by autograder for certain right answers
   answers = list( # Contains R objects associated with results, or index to plot/comment object
     data.frame(a = c(1:10), b = rep(x = c("A", "Z"), times = 5)),
@@ -33,7 +33,7 @@ example_student1 <- list(
 
 example_student2 <- list(
   studentID = c("bbark"),
-  auto_comments = c("Answer equivalent", NA, NA, "Could not parse", "Answer equivalent"), # Check, if not NA (wrong) display comment and check solutions and grade
+  auto_comments = c("Answer equivalent", "", "", "Could not parse", "Answer equivalent"), # Check, if not NA (wrong) display comment and check solutions and grade
   grades = c(NA, NA, NA, NA, 1), # Pre-populated by autograder for certain right answers
   answers = list( # Contains R objects associated with results, or index to plot/comment object
     data.frame(a = c(1:80), b = rep(x = c("A", "B", "C", "D"), times = 20)),
