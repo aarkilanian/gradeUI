@@ -1,4 +1,4 @@
-"document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function(e) {
 
       // Question navigation
       if (e.key === 'ArrowRight') {
@@ -82,4 +82,4 @@
       if (e.key === 'c') {
         Shiny.setInputValue('key_custom', Math.random());
       }
-    });"
+    });

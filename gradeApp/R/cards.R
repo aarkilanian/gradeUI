@@ -1,6 +1,6 @@
 # Add auto-card theme
 my_theme <- bs_theme() |>
-  bs_add_rules(".auto-card { border-color: #FF7878 ; }")
+  bs_add_rules(".auto-coms { color: #FF7878; }")
 
 ##### Cards #####
 card_progress <- bslib::card(
@@ -13,22 +13,27 @@ card_shortcuts <- bslib::card(
 
 card_code <- bslib::card(
   bslib::card_header("Student code"),
-  shiny::htmlOutput("student_script"),
+  aceEditor("code", mode = "r", selectionId = "selection"),
   shiny::actionButton("run", "Run selection"),
-  shiny::actionButton("reset", "Reset code")
+  shiny::actionButton("reset", "Reset code"),
+  verbatimTextOutput("code_output")
 )
 
 card_student <- bslib::card(
-  bslib::card_header("Student output"), "test")
+  bslib::card_header("Student call & output"),
+  verbatimTextOutput("s_call"),
+  verbatimTextOutput("s_answer")
+)
 
 card_solution <- bslib::card(
-  bslib::card_header("Solution output"), "test")
+  bslib::card_header("Expected call & output"),
+  verbatimTextOutput("a_call"),
+  verbatimTextOutput("a_answer")
+)
 
 card_rubric <- bslib::card(
+  height = "400px",
   bslib::card_header("Rubric"),
   uiOutput("rubric_checkbox"),
   textOutput("score_display")
   )
-
-card_comment <- bslib::card(
-  bslib::card_header("Autograder comments"), class = "auto-card", "test")
