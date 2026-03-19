@@ -25,7 +25,7 @@ function(input, output, session){
     total_marks <- rubric[rubric$question == rv$q_index,]
     total_marks <- total_marks[1,5]
     # Get selected rubric items
-    selected <- input$rubric_select
+    selected <- rv$cur_rub_sel
     if(is.null(selected)) return()
     sub_rubric <- rubric[rubric$question == rv$q_index,]
     # Get and sum deductions
@@ -64,18 +64,66 @@ function(input, output, session){
     )
   })
 
+  ##### SAVE & LOAD #####
+
+  # Check and read log if changed
+  logData <- reactiveFileReader(100, session, log_path, readRDS) %>%
+    bindEvent(rv$q_index, rv$s_index)
+
+  # Save progress to log when current rubric reactive changes
+  observe( {
+    # Get current student and question
+    curS <- isolate(rv$s_index)
+    curQ <- isolate(rv$q_index)
+    print(paste0(curS, curQ))
+    # If choices are unchanged don't save
+    logChoices <- gradelog[[curS]][[curQ]]$choices
+    n_choices <- length(logChoices)
+    if(n_choices == 0){ # TODO this fucked
+      # Do nothing
+    } else if (all(logChoices == rv$cur_rub_sel)) {
+      # Do nothing
+    } else {
+      gradelog[[curS]][[curQ]]$choices <- rv$cur_rub_sel
+      gradelog[[curS]][[curQ]]$date <- date()
+      saveRDS(gradelog, log_path)
+    }
+  })
+
+  # Output last saved grade date if any
+  output$grading_status <- renderUI({
+    curLog <- logData()
+    cur_q_log <- curLog[[rv$s_index]][[rv$q_index]]
+    cur_q_log$date
+  })
+
   ##### RUBRIC #####
 
   # Render checkboxes for current question
   output$rubric_checkbox <- renderUI({
-    choices <- get_choices()
-    checkboxGroupInput("rubric_select", "Rubric:", choices = choices)
+    choic_sel <- get_choices()
+    selections <- choic_sel[[1]]
+    choices <- choic_sel[[2]]
+    checkboxGroupInput("rubric_select", "Rubric:", choices = choices, selected = selections)
   })
 
   # Get choices for current question from rubric csv
   get_choices <- reactive({
+    # Get current log
+    curLog <- isolate(logData())
+    # Get current student and question
+    curS <- rv$s_index
+    curQ <- rv$q_index
+    logChoices <- curLog[[curS]][[curQ]]$choices
+    if(anyNA(logChoices)){
+      rv$cur_rub_sel <- NULL
+      selections <- NULL
+    } else {
+      rv$cur_rub_sel <- logChoices
+      selections <- logChoices
+    }
     # Subset rubric to current question
-    sub_rubric <- rubric[rubric$question == rv$q_index,]
+    sub_rubric <- rubric[rubric$question == curQ,]
     choices <- setNames(sub_rubric$key,
                         paste0(sub_rubric$key,
                                ". ",
@@ -83,7 +131,7 @@ function(input, output, session){
                                " (-",
                                sub_rubric$deduction,
                                ")"))
-    return(choices)
+    return(list(selections, choices))
   })
 
   # Capture rubric choice
@@ -125,13 +173,6 @@ function(input, output, session){
     # Update stored value
     rv$cur_rub_sel <- new_selection
 
-    # Update log
-    gradelog[[rv$s_index]][[rv$q_index]]$choices <- rv$cur_rub_sel
-    gradelog[[rv$s_index]][[rv$q_index]]$date <- date()
-    saveRDS(gradelog, log_path)
-    readRDS(log_path)
-    print("saved")
-
   })
 
   # Modify rubric choice with keyboard
@@ -166,13 +207,6 @@ function(input, output, session){
 
     # Update stored value
     rv$cur_rub_sel <- new_selection
-
-    # Update log
-    gradelog[[rv$s_index]][[rv$q_index]]$choices <- rv$cur_rub_sel
-    gradelog[[rv$s_index]][[rv$q_index]]$date <- date()
-    saveRDS(gradelog, log_path)
-    readRDS(log_path)
-    print("saved")
 
   })
 

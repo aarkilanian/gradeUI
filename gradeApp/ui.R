@@ -101,6 +101,7 @@ bslib::page_sidebar(
   ),
   uiOutput("auto_comments", class = "auto-coms"),
   card_rubric,
+  uiOutput("grading_status"),
 
   # Footer
   accordion(
