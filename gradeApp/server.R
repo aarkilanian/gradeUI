@@ -2,13 +2,67 @@ function(input, output, session){
 
   # Set reactive values
   rv <- shiny::reactiveValues(
-    tot_student = length(students),
-    tot_question = length(answers),
     q_index = 1,
     s_index = 1,
-    graded = 0,
     cur_rub_sel = NULL
   )
+
+  ##### DISPLAYS #####
+
+  # Title: current student and question
+  output$student_question <- renderUI({
+    HTML(paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index))
+  })
+
+  # Question score
+  output$score_display <- renderText({
+    paste("Question score: ", score())
+  })
+
+  # Question score calculator
+  score <- reactive({
+    # Calculate total question marks
+    total_marks <- rubric[rubric$question == rv$q_index,]
+    total_marks <- total_marks[1,5]
+    # Get selected rubric items
+    selected <- input$rubric_select
+    if(is.null(selected)) return()
+    sub_rubric <- rubric[rubric$question == rv$q_index,]
+    # Get and sum deductions
+    selected_ded <- sub_rubric[sub_rubric$key %in% selected,]
+    selected_ded <- selected_ded$deduction
+    return(total_marks - sum(selected_ded))
+  })
+
+  # Autograding comments
+  output$auto_comments <- renderUI({
+    students[[rv$s_index]][[rv$q_index]]$auto_message
+  })
+
+  # Grading progress
+  output$progress <- shiny::renderUI({
+    div(
+      HTML("<p><b>Progress:</b><br>"),
+      HTML(paste0(rv$graded/tot_student*100), " % complete<br>"),
+      HTML(paste0(tot_student - rv$graded), " students remaining<br>"),
+      HTML(paste0(tot_student*tot_question - length(rv$grades), " questions remaining")),
+      HTML("</p>")
+    )
+  })
+
+  # Shortcut guide
+  output$shortcuts <- shiny::renderUI({
+    div(
+      HTML("<p><b>Shortcuts:</b><br>"),
+      shiny::icon("circle-right"),
+      HTML(" (next question)<br>"),
+      shiny::icon("circle-left"),
+      HTML(" (previous question)<br>"),
+      shiny::icon("arrow-up-1-9"),
+      HTML(" (select rubric items)<br>"),
+      HTML("</p>"),
+    )
+  })
 
   ##### RUBRIC #####
 
@@ -71,6 +125,13 @@ function(input, output, session){
     # Update stored value
     rv$cur_rub_sel <- new_selection
 
+    # Update log
+    gradelog[[rv$s_index]][[rv$q_index]]$choices <- rv$cur_rub_sel
+    gradelog[[rv$s_index]][[rv$q_index]]$date <- date()
+    saveRDS(gradelog, log_path)
+    readRDS(log_path)
+    print("saved")
+
   })
 
   # Modify rubric choice with keyboard
@@ -106,63 +167,13 @@ function(input, output, session){
     # Update stored value
     rv$cur_rub_sel <- new_selection
 
-  })
+    # Update log
+    gradelog[[rv$s_index]][[rv$q_index]]$choices <- rv$cur_rub_sel
+    gradelog[[rv$s_index]][[rv$q_index]]$date <- date()
+    saveRDS(gradelog, log_path)
+    readRDS(log_path)
+    print("saved")
 
-  ##### DISPLAYS #####
-
-  # Title: current student and question
-  output$student_question <- renderUI({
-    HTML(paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index))
-  })
-
-  # Question score
-  output$score_display <- renderText({
-    paste("Question score: ", score())
-  })
-
-  # Question score calculator
-  score <- reactive({
-    # Calculate total question marks
-    total_marks <- rubric[rubric$question == rv$q_index,]
-    total_marks <- total_marks[1,5]
-    # Get selected rubric items
-    selected <- input$rubric_select
-    if(is.null(selected)) return()
-    sub_rubric <- rubric[rubric$question == rv$q_index,]
-    # Get and sum deductions
-    selected_ded <- sub_rubric[sub_rubric$key %in% selected,]
-    selected_ded <- selected_ded$deduction
-    return(total_marks - sum(selected_ded))
-  })
-
-  # Autograding comments
-  output$auto_comments <- renderUI({
-    students[[rv$s_index]][[rv$q_index]]$auto_message
-  })
-
-  # Grading progress
-  output$progress <- shiny::renderUI({
-    div(
-      HTML("<p><b>Progress:</b><br>"),
-      HTML(paste0(rv$graded/rv$tot_student*100), " % complete<br>"),
-      HTML(paste0(rv$tot_student - rv$graded), " students remaining<br>"),
-      HTML(paste0(rv$tot_student*rv$tot_question - length(rv$grades), " questions remaining")),
-      HTML("</p>")
-    )
-  })
-
-  # Shortcut guide
-  output$shortcuts <- shiny::renderUI({
-    div(
-      HTML("<p><b>Shortcuts:</b><br>"),
-      shiny::icon("circle-right"),
-      HTML(" (next question)<br>"),
-      shiny::icon("circle-left"),
-      HTML(" (previous question)<br>"),
-      shiny::icon("arrow-up-1-9"),
-      HTML(" (select rubric items)<br>"),
-      HTML("</p>"),
-    )
   })
 
   ##### ANSWER AND SOLUTION #####
@@ -185,88 +196,126 @@ function(input, output, session){
 
   ##### EDITOR #####
 
-  # Get student script
+  # Get student script when student changes
   student_script <- reactive({
     assignment_path <- students[[rv$s_index]]$path
     script_text <- paste(readLines(assignment_path), collapse = '\n')
     return(script_text)
   })
 
+  # Update script in editor
   observeEvent(student_script(), {
     updateAceEditor(session, "code", value = student_script())
   })
 
-  # Reset code
+  # Reset script
   observeEvent(input$reset, {
     updateAceEditor(session, "code", value = student_script())
   })
 
- # Evaluate expression when pressing "run"
+  # Evaluate expression when pressing "run"
   evaled_call <- eventReactive(input$run, {
     eval(parse(text = isolate(input$code_selection)))
   })
 
- # Render expression output
- output$code_output <- renderPrint({
-   evaled_call()
- })
+  # Render expression output
+  output$code_output <- renderPrint({
+    evaled_call()
+  })
 
   ##### NAVIGATION #####
 
-  # Change question (forward)
+  # Change student (forward)
   observeEvent(input$key_next, {
-    # If at end of questions
-    if(rv$q_index == rv$tot_question){
-      # If at last student, wrap around to start
-      if(rv$s_index == rv$tot_student){
+
+    # If not at at end of students, go to next student
+    if(rv$s_index != tot_student){
+      rv$s_index <- rv$s_index + 1
+
+    } else{
+
+      # If not at end of questions, got to next question
+      if (rv$q_index != tot_question) {
+        rv$q_index <- rv$q_index + 1
+        rv$s_index <- 1
+
+      # Otherwise, go back to first question and student
+      } else {
+        rv$s_index <- 1
+        rv$q_index <- 1
+      }
+
+    }
+  })
+
+  # Change student (backwards)
+  observeEvent(input$key_prev, {
+
+    # If not at at start of students, go to prev student
+    if(rv$s_index != 1){
+      rv$s_index <- rv$s_index - 1
+
+    } else{
+
+      # If not at start of questions, got to prev question
+      if (rv$q_index != 1) {
+        rv$q_index <- rv$q_index - 1
+        rv$s_index <- tot_student
+
+        # Otherwise, go to last question and student
+      } else {
+        rv$s_index <- tot_student
+        rv$q_index <- tot_question
+      }
+
+    }
+  })
+
+  # Change question (forward)
+  observeEvent(input$key_nexts, {
+
+    # If not at end of questions
+    if(rv$q_index != tot_question){
+      rv$q_index <- rv$q_index + 1
+
+    } else {
+
+      # If not at end of students
+      if (rv$s_index != tot_student) {
+        rv$q_index <- 1
+        rv$s_index <-  rv$s_index + 1
+
+        # Go back to start
+      } else {
         rv$q_index <- 1
         rv$s_index <- 1
-        # If not go to next student
-      } else{
-        rv$q_index <- 1
-        rv$s_index <- rv$s_index + 1
+
       }
-      # Otherwise increment question
-    } else{
-      rv$q_index <- rv$q_index + 1
     }
   })
 
   # Change question (backwards)
-  observeEvent(input$key_prev, {
-    # If at start of questions go to previous student
-    if(rv$q_index == 1){
-      # If at first student, wrap around to last
-      if(rv$s_index == 1){
-        rv$q_index <- rv$tot_question
-        rv$s_index <- rv$tot_student
-      } else{
-        rv$q_index <- rv$tot_question
-        rv$s_index <- rv$s_index - 1
+  observeEvent(input$key_prevs, {
+
+    # If not at end of questions
+    if(rv$q_index != 1){
+      rv$q_index <- rv$q_index - 1
+
+    } else {
+
+      # If not at end of students
+      if (rv$s_index != 1) {
+        rv$q_index <- tot_question
+        rv$s_index <-  rv$s_index - 1
+
+        # Go back to start
+      } else {
+        rv$q_index <- tot_question
+        rv$s_index <- tot_student
+
       }
-    } else{
-      rv$q_index <-  rv$q_index - 1
     }
   })
 
-  # # Change student (forward)
-  # observeEvent(input$key_nexts, {
-  #   # If at end of students, don't change
-  #   if(rv$s_index == rv$tot_student){
-  #     rv$s_index <- rv$s_index
-  #   } else{
-  #     rv$s_index <- rv$s_index + 1
-  #   }
-  # })
-  #
-  # # Change student (backwards)
-  # observeEvent(input$key_prevs, {
-  #   # If at start of students, don't change
-  #   if(rv$s_index == 1){
-  #     rv$s_index <- rv$s_index
-  #   } else{
-  #     rv$s_index <- rv$s_index - 1
-  #   }
-  # })
 
 }
