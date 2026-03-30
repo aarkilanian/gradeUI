@@ -1,6 +1,6 @@
 bslib::page_sidebar(
 
-  # Add keyboard shortcuts
+  ##### SHORTCUTS #####
   tags$script(HTML(
     "document.addEventListener('keydown', function(e) {
 
@@ -81,37 +81,92 @@ bslib::page_sidebar(
       if (e.key === 'Digit0') {
         Shiny.setInputValue('key_rubric', '0', {priority: 'event'});
       }
+
+      // Other navigation
+
+      // Comment focus
+      if (e.key === 'c') {
+        Shiny.setInputValue('key_comment', Math.random());
+      }
+      // Reset focus
+      if (e.key == 'Escape') {
+        Shiny.setInputValue('key_reset', Math.random());
+      }
+      // Flag question
+      if (e.key == 'f') {
+        Shiny.setInputValue('key_flag', Math.random());
+      }
     });"
   )),
+
+  # activate shinyjs and extendShinyjs
+  useShinyjs(),
+  extendShinyjs(text = jscode, functions = "refocus"),
+
+  # activate shiny feedback
+  shinyFeedback::useShinyFeedback(),
+
   # Add theme
   theme = my_theme,
 
   # Title
   shiny::titlePanel(shiny::htmlOutput("student_question")),
 
-  # Sidebar content
-  sidebar = bslib::sidebar(card_code, width = "25%"),
+  # Subtitle
+  h5("This is the prompt."),
 
-  # Main content
+  # Student code
+  sidebar = bslib::sidebar(card_code, width = "25%", open = FALSE),
+
+  # Answers
   layout_column_wrap(
-    width = "350px",
-    height = "300px",
-    card_student,
-    card_solution
+    accordion(id = "s_card", multiple = TRUE,
+              accordion_panel("Student call", verbatimTextOutput("s_call")),
+              accordion_panel("Student answer", verbatimTextOutput("s_answer")),
+              accordion_panel("Student plots")),
+    accordion(id = "a_card", multiple = TRUE,
+              accordion_panel("Solution call", verbatimTextOutput("a_call")),
+              accordion_panel("Solution answer", verbatimTextOutput("a_answer")),
+              accordion_panel("Solution plots"))
   ),
-  uiOutput("auto_comments", class = "auto-coms"),
-  card_rubric,
-  uiOutput("grading_status"),
+
+  # Grading
+  layout_column_wrap(
+    card_rubric,
+    layout_column_wrap(width = 1,
+      card_feedback,
+      card_progress
+    )
+  ),
 
   # Footer
-  accordion(
-    accordion_panel(
-      title = "Progress and shortcuts (click to expand / shrink)",
-      fluidRow(
-        column(width = 6, card_progress
-        ), column(width = 6, card_shortcuts
-        )
-      )
-    )
+  accordion(open = FALSE,
+            accordion_panel(
+              title = "Shortcuts (click to expand / shrink)",
+              fillRow(
+                flex = c(1,5,1,5,1,5),
+                height = "100px",
+                short_nav_sym,
+                short_nav_desc,
+                short_grade_sym,
+                short_grade_desc,
+                short_extra_sym,
+                short_extra_desc
+              )
+            )
   )
+
+ #  # Footer
+ #  accordion(open = FALSE,
+ #    accordion_panel(
+ #      title = "Shortcuts (click to expand / shrink)",
+ #      layout_columns(
+ #        col_widths = c(2,4,2,4),
+ #        card_short_nav_sym,
+ #        card_short_nav_desc,
+ #        card_short_grade_sym,
+ #        card_short_grade_desc
+ #      )
+ #    )
+ # )
 )

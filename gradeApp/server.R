@@ -19,6 +19,15 @@ function(input, output, session){
     paste("Question score: ", score())
   })
 
+  # Flagging
+  observe({
+    #curFlag <- gradelog[[rv$s_index]][[rv$q_index]]$flagged
+    req(rv$s_index)
+    req(rv$q_index)
+    curFlag <- TRUE
+    updateCheckboxInput(session, inputId = "flag", value = curFlag)
+  })
+
   # Question score calculator
   score <- reactive({
     # Calculate total question marks
@@ -36,31 +45,17 @@ function(input, output, session){
 
   # Autograding comments
   output$auto_comments <- renderUI({
-    students[[rv$s_index]][[rv$q_index]]$auto_message
+    mess <- students[[rv$s_index]][[rv$q_index]]$auto_message
+    if(is.na(mess)) "" else paste0("Autograder: ", mess)
   })
 
   # Grading progress
   output$progress <- shiny::renderUI({
     div(
-      HTML("<p><b>Progress:</b><br>"),
       HTML(paste0(rv$graded/tot_student*100), " % complete<br>"),
       HTML(paste0(tot_student - rv$graded), " students remaining<br>"),
       HTML(paste0(tot_student*tot_question - length(rv$grades), " questions remaining")),
       HTML("</p>")
-    )
-  })
-
-  # Shortcut guide
-  output$shortcuts <- shiny::renderUI({
-    div(
-      HTML("<p><b>Shortcuts:</b><br>"),
-      shiny::icon("circle-right"),
-      HTML(" (next question)<br>"),
-      shiny::icon("circle-left"),
-      HTML(" (previous question)<br>"),
-      shiny::icon("arrow-up-1-9"),
-      HTML(" (select rubric items)<br>"),
-      HTML("</p>"),
     )
   })
 
@@ -99,31 +94,29 @@ function(input, output, session){
 
   ##### RUBRIC #####
 
-  # Render checkboxes for current question
-  output$rubric_checkbox <- renderUI({
-    choic_sel <- get_choices()
-    selections <- choic_sel[[1]]
-    choices <- choic_sel[[2]]
-    checkboxGroupInput("rubric_select", "Rubric:", choices = choices, selected = selections)
+  # Display comment
+  observe({
+    curMess <- gradelog[[rv$s_index]][[rv$q_index]]
+    updateTextInput(session, "ta_comment", value = curMess)
   })
 
-  # Get choices for current question from rubric csv
+  # Render checkboxes for current question
+  output$rubric_checkbox <- renderUI({
+    rub_choices <- get_choices()
+    prev_sel <- logged_choice()
+    radioButtons("rubric_select",
+                  "Rubric:",
+                  choices = rub_choices,
+                  selected = prev_sel)
+  })
+
+  # Get choices for current question from rubric
   get_choices <- reactive({
     # Get current log
-    curLog <- isolate(logData())
-    # Get current student and question
-    curS <- rv$s_index
-    curQ <- rv$q_index
-    logChoices <- curLog[[curS]][[curQ]]$choices
-    if(anyNA(logChoices)){
-      rv$cur_rub_sel <- NULL
-      selections <- NULL
-    } else {
-      rv$cur_rub_sel <- logChoices
-      selections <- logChoices
-    }
+    curLog <- rv$log
     # Subset rubric to current question
-    sub_rubric <- rubric[rubric$question == curQ,]
+    req(rv$s_index)
+    sub_rubric <- rubric[rubric$question == rv$q_index,]
     choices <- setNames(sub_rubric$key,
                         paste0(sub_rubric$key,
                                ". ",
@@ -131,84 +124,53 @@ function(input, output, session){
                                " (-",
                                sub_rubric$deduction,
                                ")"))
-    return(list(selections, choices))
+    # Return result
+    return(choices)
   })
 
-  # Capture rubric choice
-  observeEvent(input$rubric_select, {
-
-    # Get previous selections
-    prev_sel <- rv$cur_rub_sel
-
-    # Set rubric to selections
-    cur_sel <- input$rubric_select
-    # Get newest addition
-    if(is.null(prev_sel)){
-      new_sel <- cur_sel
-    } else {
-      new_sel <- setdiff(cur_sel, prev_sel)
-    }
-
-    # Find corresponding rubric item
-    rub_row <- which(rubric$question == rv$q_index & rubric$key == new_sel)
-    # If not a rubric item return nothing
-    if(length(rub_row) == 0) return()
-
-    #
-    if(any(new_sel %in% c("0", "1"))){
-      new_selection <- new_sel
-    } else if(any(prev_sel %in% c("0", "1"))){
-      new_selection <- new_sel
-    } else{
-      new_selection <- cur_sel
-    }
-
-    # Update checkboxes
-    updateCheckboxGroupInput(
-      session,
-      "rubric_select",
-      selected = new_selection
-    )
-
-    # Update stored value
-    rv$cur_rub_sel <- new_selection
-
+  # Get saved rubric selection
+  logged_choice <- reactive({
+    # Get log
+    curLog <- rv$log
+    # Get current rubric key
+    curRub <- curLog[[rv$s_index]][[rv$q_index]]$key
+    # Save as reactive
+    # rv$cur_rub_sel <- curRub
+    # Return
+    return(curRub)
   })
 
-  # Modify rubric choice with keyboard
-  observeEvent(input$key_rubric, {
-
-    # Get previous selections
-    prev_sel <- rv$cur_rub_sel
+  # Capture rubric choice with mouse
+  observe({
 
     # Get current selection
-    cur_sel <- input$key_rubric
-
-    # Find corresponding rubric item
-    rub_row <- which(rubric$question == rv$q_index & rubric$key == cur_sel)
-    # If not a rubric item return nothing
-    if(length(rub_row) == 0) return()
-
-    # Compose new selection
-    if(any(cur_sel %in% c("0", "1"))){
-      new_selection <- cur_sel
-    } else if(any(prev_sel %in% c("0", "1"))){
-      new_selection <- cur_sel
-    } else {
-      new_selection <- union(prev_sel, cur_sel)
-    }
+    cur_sel <- input$rubric_select
 
     # Update checkboxes
-    updateCheckboxGroupInput(
+    updateRadioButtons(
       session,
       "rubric_select",
-      selected = new_selection
-    )
+      selected = input$rubric_select)
 
-    # Update stored value
-    rv$cur_rub_sel <- new_selection
-
+    # Update log and grade
   })
+
+  # # Modify rubric choice with keyboard
+  # observeEvent(input$key_rubric, {
+  #
+  #   # Get previous selections
+  #   prev_sel <- logged_choice()
+  #   # Get current selection
+  #   cur_sel <- input$key_rubric
+  #
+  #   # Update checkboxes
+  #   updateRadioButtons(
+  #     session,
+  #     "rubric_select",
+  #     selected = cur_sel)
+  #
+  #   # Update log and grade
+  # })
 
   ##### ANSWER AND SOLUTION #####
 
@@ -257,7 +219,7 @@ function(input, output, session){
     evaled_call()
   })
 
-  ##### NAVIGATION #####
+  ##### QUESTION NAVIGATION #####
 
   # Change student (forward)
   observeEvent(input$key_next, {
@@ -349,6 +311,24 @@ function(input, output, session){
 
       }
     }
+  })
+
+  ##### OTHER NAVIGATION #####
+
+  # Flag question
+  observeEvent(input$key_flag, {
+    updateCheckboxInput(session, inputId = "flag", value = !input$flag)
+    # TODO save flag status to log
+  })
+
+  # Reset focus
+  observeEvent(input$key_reset, {
+    shinyjs::runjs("document.activeElement.blur();")
+  })
+
+  # Go to comment
+  observeEvent(input$key_comment, {
+    js$refocus("ta_comment")
   })
 
 

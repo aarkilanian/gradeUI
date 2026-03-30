@@ -1,8 +1,18 @@
 ##### Resources #####
+require(dplyr)
+require(lubridate)
 require(bslib)
 require(shiny)
 require(shinyAce)
+require(shinyjs)
+require(shinyFeedback)
 source("R/cards.R")
+
+# JS refocus function
+jscode <- "
+shinyjs.refocus = function(e_id) {
+  document.getElementById(e_id).focus();
+}"
 
 # Read files
 rubric <- read.csv("../data/ex_rubric.csv")

@@ -4,7 +4,7 @@ students <- list(
       grade = TRUE,
       TA_grade = NA,
       deductions = c(),
-      auto_message = "Correct.",
+      auto_message = NA,
       answer = data.frame(a = 1:3, b = 4:6),
       answer_call = parse(text = "a <- data.frame(a = 1:3, b = 4:6)")
     ),
