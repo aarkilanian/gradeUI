@@ -2,7 +2,23 @@ bslib::page_sidebar(
 
   ##### SHORTCUTS #####
   tags$script(HTML(
-    "document.addEventListener('keydown', function(e) {
+    "let aceFocused = false;
+
+      document.addEventListener('focusin', function(e) {
+      if (e.target.closest('.ace_editor')) {
+        aceFocused = true;
+      }
+    });
+
+    document.addEventListener('focusout', function(e) {
+      if (e.target.closest('.ace_editor')) {
+        aceFocused = false;
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+
+      if (aceFocused) return;  // disable shortcuts while editing
 
       // Question navigation
       if (e.key === 'ArrowRight') {

@@ -1,46 +1,46 @@
 function(input, output, session){
 
-  # Set reactive values
-  rv <- shiny::reactiveValues(
-    q_index = 1,
-    s_index = 1,
-    cur_rub_sel = NULL
+  ##### VALUES #####
+
+  # Create student/question tracking variables
+  rv <- reactiveValues(
+    q_index = last_q,
+    s_index = last_s
   )
+
+  # Create main log variable
+  # fullLog <- reactiveVal(read.csv(log_path, colClasses = c("character",
+  #                                                          "character",
+  #                                                          "character",
+  #                                                          "character",
+  #                                                          "character",
+  #                                                          "logical")))
+  fullLog <- reactiveFileReader(1000, session, log_path, read.csv,
+                                colClasses = c("character",
+                                               "character",
+                                               "character",
+                                               "character",
+                                               "character",
+                                               "logical"))
+
+  # Create logging variables
+  curLog <- reactiveVal()
+
+  # Parse current log
+  observe({
+    full_log <- fullLog()
+    # Filter current question and student log
+    cur_log <- full_log %>%
+      filter(student == rv$s_index & question == rv$q_index)
+    # Update current log
+    curLog(cur_log)
+  })
 
   ##### DISPLAYS #####
 
-  # Title: current student and question
+  # Current student and question
   output$student_question <- renderUI({
     HTML(paste0("Student ", rv$s_index, " | ", "Question ", rv$q_index))
-  })
-
-  # Question score
-  output$score_display <- renderText({
-    paste("Question score: ", score())
-  })
-
-  # Flagging
-  observe({
-    #curFlag <- gradelog[[rv$s_index]][[rv$q_index]]$flagged
-    req(rv$s_index)
-    req(rv$q_index)
-    curFlag <- TRUE
-    updateCheckboxInput(session, inputId = "flag", value = curFlag)
-  })
-
-  # Question score calculator
-  score <- reactive({
-    # Calculate total question marks
-    total_marks <- rubric[rubric$question == rv$q_index,]
-    total_marks <- total_marks[1,5]
-    # Get selected rubric items
-    selected <- rv$cur_rub_sel
-    if(is.null(selected)) return()
-    sub_rubric <- rubric[rubric$question == rv$q_index,]
-    # Get and sum deductions
-    selected_ded <- sub_rubric[sub_rubric$key %in% selected,]
-    selected_ded <- selected_ded$deduction
-    return(total_marks - sum(selected_ded))
   })
 
   # Autograding comments
@@ -49,73 +49,46 @@ function(input, output, session){
     if(is.na(mess)) "" else paste0("Autograder: ", mess)
   })
 
-  # Grading progress
-  output$progress <- shiny::renderUI({
-    div(
-      HTML(paste0(rv$graded/tot_student*100), " % complete<br>"),
-      HTML(paste0(tot_student - rv$graded), " students remaining<br>"),
-      HTML(paste0(tot_student*tot_question - length(rv$grades), " questions remaining")),
-      HTML("</p>")
-    )
+  # Display saved message
+  output$ta_comment <- renderUI({
+    textInput("ta_comment", "Feedack", value = curLog()$mess)
   })
 
-  ##### SAVE & LOAD #####
+  # Display flagging
+  output$flag <- renderUI({
+    checkboxInput("flag", "Flag question", value = curLog()$flagged)
+  })
 
-  # Check and read log if changed
-  logData <- reactiveFileReader(100, session, log_path, readRDS) %>%
-    bindEvent(rv$q_index, rv$s_index)
-
-  # Save progress to log when current rubric reactive changes
-  observe( {
-    # Get current student and question
-    curS <- isolate(rv$s_index)
-    curQ <- isolate(rv$q_index)
-    print(paste0(curS, curQ))
-    # If choices are unchanged don't save
-    logChoices <- gradelog[[curS]][[curQ]]$choices
-    n_choices <- length(logChoices)
-    if(n_choices == 0){ # TODO this fucked
-      # Do nothing
-    } else if (all(logChoices == rv$cur_rub_sel)) {
-      # Do nothing
+  # Display checkboxes
+  output$rubric_checkbox <- renderUI({
+    cur_rub <- curLog()$rub
+    print(cur_rub)
+    if(cur_rub == "") {
+      sel <- character(0)
     } else {
-      gradelog[[curS]][[curQ]]$choices <- rv$cur_rub_sel
-      gradelog[[curS]][[curQ]]$date <- date()
-      saveRDS(gradelog, log_path)
+      sel <- cur_rub
     }
+    radioButtons("rubric_checkbox", "Rubric",
+                 choices = get_choices(),
+                 selected = sel)
   })
 
-  # Output last saved grade date if any
-  output$grading_status <- renderUI({
-    curLog <- logData()
-    cur_q_log <- curLog[[rv$s_index]][[rv$q_index]]
-    cur_q_log$date
+  # Display last saved date
+  output$last_date <- renderText({
+    paste("Last graded: ", curLog()$last_date)
+  })
+
+  # Display grade
+  output$score_display <- renderText({
+    paste("Question score: ", score())
   })
 
   ##### RUBRIC #####
 
-  # Display comment
-  observe({
-    curMess <- gradelog[[rv$s_index]][[rv$q_index]]
-    updateTextInput(session, "ta_comment", value = curMess)
-  })
-
-  # Render checkboxes for current question
-  output$rubric_checkbox <- renderUI({
-    rub_choices <- get_choices()
-    prev_sel <- logged_choice()
-    radioButtons("rubric_select",
-                  "Rubric:",
-                  choices = rub_choices,
-                  selected = prev_sel)
-  })
+  ### Reactives
 
   # Get choices for current question from rubric
   get_choices <- reactive({
-    # Get current log
-    curLog <- rv$log
-    # Subset rubric to current question
-    req(rv$s_index)
     sub_rubric <- rubric[rubric$question == rv$q_index,]
     choices <- setNames(sub_rubric$key,
                         paste0(sub_rubric$key,
@@ -128,48 +101,140 @@ function(input, output, session){
     return(choices)
   })
 
-  # Get saved rubric selection
-  logged_choice <- reactive({
-    # Get log
-    curLog <- rv$log
-    # Get current rubric key
-    curRub <- curLog[[rv$s_index]][[rv$q_index]]$key
-    # Save as reactive
-    # rv$cur_rub_sel <- curRub
-    # Return
-    return(curRub)
+  # Question score calculator
+  score <- reactive({
+    # Calculate total question marks
+    total_marks <- rubric[rubric$question == rv$q_index,]
+    total_marks <- total_marks[1,5]
+    # Get selected rubric items
+    selected <- input$rubric_checkbox
+    if(is.null(selected)) return()
+    sub_rubric <- rubric[rubric$question == rv$q_index,]
+    # Get and sum deductions
+    selected_ded <- sub_rubric[sub_rubric$key %in% selected,]
+    selected_ded <- selected_ded$deduction
+    return(total_marks - sum(selected_ded))
   })
 
-  # Capture rubric choice with mouse
-  observe({
+  ### Inputs
 
-    # Get current selection
-    cur_sel <- input$rubric_select
+  # Capture rubric with keyboard
+  observeEvent(input$key_rubric, {
 
-    # Update checkboxes
-    updateRadioButtons(
-      session,
-      "rubric_select",
-      selected = input$rubric_select)
+    # Get selection
+    sel <- isolate(input$key_rubric)
 
-    # Update log and grade
+    # Update rubric checkboxes
+    updateRadioButtons(session,
+                       inputId = "rubric_checkbox",
+                       selected = sel)
   })
 
-  # # Modify rubric choice with keyboard
-  # observeEvent(input$key_rubric, {
-  #
-  #   # Get previous selections
-  #   prev_sel <- logged_choice()
-  #   # Get current selection
-  #   cur_sel <- input$key_rubric
-  #
-  #   # Update checkboxes
-  #   updateRadioButtons(
-  #     session,
-  #     "rubric_select",
-  #     selected = cur_sel)
-  #
-  #   # Update log and grade
+  # Capture rubric choice with mouse and save
+  observeEvent(input$rubric_checkbox, {
+
+    if(length(input$rubric_checkbox) == 0) return()
+    if(input$rubric_checkbox == curLog()$rub) return()
+
+    print("saving rubric")
+
+    # Read current and full log
+    full_log <- fullLog()
+    cur_log <- curLog()
+
+    # Make changes
+    cur_log$rub <- input$rubric_checkbox
+    cur_log$last <- as.character(Sys.time())
+
+    # Save current log reactive
+    curLog(cur_log)
+
+    # Modify full log
+    full_log <- full_log %>%
+      rows_update(cur_log, by = c("student", "question"))
+
+    # Save to file
+    write.csv(full_log, log_path, row.names = FALSE)
+
+    # Reread file
+    fullLog()
+
+  })
+
+  # Flag question (keyboard)
+  observeEvent(input$key_flag, {
+
+    # Get checkbox value
+    curFlag <- isolate(input$flag)
+    # Update checkbox
+    updateCheckboxInput(session, inputId = "flag", value = !curFlag)
+
+  })
+
+  # Flag question (mouse) & save
+  observeEvent(input$flag, {
+
+    #if(input$flag == curLog()$flagged) return()
+
+    print("saving flag")
+
+    # Read current and full log
+    full_log <- fullLog()
+    cur_log <- curLog()
+
+    # Make changes
+    cur_log$flagged <- input$flag
+
+    # Save current log reactive
+    curLog(cur_log)
+
+    # Modify full log
+    full_log <- full_log %>%
+      rows_update(cur_log, by = c("student", "question"))
+
+    # Save to file
+    write.csv(full_log, log_path, row.names = FALSE)
+
+    # Reread file
+    fullLog()
+  })
+
+  # Save comment
+  observeEvent(input$ta_comment, {
+
+    #if(input$ta_comment == curLog()$mess) return()
+
+    print("saving comment")
+
+    # Read current and full log
+    full_log <- fullLog()
+    cur_log <- curLog()
+
+    # Make changes
+    cur_log$mess <- input$ta_comment
+
+    # Save current log reactive
+    curLog(cur_log)
+
+    # Modify full log
+    full_log <- full_log %>%
+      rows_update(cur_log, by = c("student", "question"))
+
+    # Save to file
+    write.csv(full_log, log_path, row.names = FALSE)
+
+    # Reread file
+    fullLog()
+  })
+
+  # Grading progress
+  # output$progress <- shiny::renderUI({
+  #   div(
+  #     HTML(paste0(rv$graded/tot_student*100), " % complete<br>"),
+  #     HTML(paste0(tot_student - rv$graded), " students remaining<br>"),
+  #     HTML(paste0(tot_student*tot_question - length(rv$grades), " questions remaining")),
+  #     HTML("</p>")
+  #   )
   # })
 
   ##### ANSWER AND SOLUTION #####
@@ -195,6 +260,7 @@ function(input, output, session){
   # Get student script when student changes
   student_script <- reactive({
     assignment_path <- students[[rv$s_index]]$path
+    print(assignment_path)
     script_text <- paste(readLines(assignment_path), collapse = '\n')
     return(script_text)
   })
@@ -219,7 +285,7 @@ function(input, output, session){
     evaled_call()
   })
 
-  ##### QUESTION NAVIGATION #####
+  ##### NAVIGATION #####
 
   # Change student (forward)
   observeEvent(input$key_next, {
@@ -311,14 +377,6 @@ function(input, output, session){
 
       }
     }
-  })
-
-  ##### OTHER NAVIGATION #####
-
-  # Flag question
-  observeEvent(input$key_flag, {
-    updateCheckboxInput(session, inputId = "flag", value = !input$flag)
-    # TODO save flag status to log
   })
 
   # Reset focus

@@ -25,26 +25,44 @@ tot_student <- length(students)
 tot_question <- length(answers)
 
 # Set log path
-log_path <- "../data/gradelog.rda"
+log_path <- "../data/gradelog.csv"
 # Build log if not present
 if (!file.exists(log_path)) {
 
-  gradelog <- vector("list", tot_student)
+  # Define descriptive and dimensions
+  student <- rep(1:tot_student, each = tot_question)
+  question <- rep(1:tot_question, times = tot_student)
 
-  for (i in 1:tot_student){
-    gradelog[[i]] <- vector("list", tot_question)
+  # Logging columns
+  mess <- character(length = length(student))
+  rub <- character(length = length(student))
+  last <- character(length = length(student))
+  flagged <- logical(length = length(student))
 
-    for(j in 1:tot_question){
-      gradelog[[i]][[j]] <- list(grade = NA,
-                                  choices = character(),
-                                  date = NA)
-    }
-  }
+  # Combine to dataframe
+  gradelog <- data.frame(student, question, mess, rub, last, flagged)
 
-  saveRDS(gradelog, log_path)
+  # Save as csv
+  write.csv(gradelog, log_path, row.names = FALSE)
 
 } else {
 
-  gradelog <- readRDS(log_path)
+  gradelog <- read.csv(log_path, colClasses = c("character",
+                                                "character",
+                                                "character",
+                                                "character",
+                                                "character",
+                                                "logical"))
 
+}
+
+# Get last graded student and question
+if(any(gradelog$last != "")){
+  recent <- which(gradelog$last == max(gradelog$last))
+  last_q <- gradelog[recent,]$question
+  last_s <- gradelog[recent,]$student
+
+} else {
+  last_q <- 1
+  last_s <- 1
 }

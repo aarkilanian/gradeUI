@@ -33,7 +33,7 @@ card_rubric <- bslib::card(
 
 card_feedback<- bslib::card(
   bslib::card_header("Feedback"),
-  textInput("ta_comment", NULL),
+  uiOutput("ta_comment"),
   checkboxInput("flag", "Flag question", FALSE)
 )
 
