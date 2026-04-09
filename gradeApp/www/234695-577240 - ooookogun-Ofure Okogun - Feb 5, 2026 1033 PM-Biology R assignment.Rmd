@@ -1,0 +1,108 @@
+---
+title: "Biology R assignment"
+author: "Ofure Okogun"
+date: "2026-01-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+``` {r bio}
+install.packages("dplyr")
+library(dplyr)
+MooseDataset<- na.omit(MooseDataset)
+MooseDataset<- select(MooseDataset, Ecoregion, Year, Area, Estimated_Moose_Pop)
+min(MooseDataset$Year)
+#the oldest year is 1904
+max(MooseDataset$Estimated_Moose_Pop)
+#the highest Estimated_Moose_Pop is 41250
+MooseDataset <- mutate(MooseDataset, MooseDensity = Estimated_Moose_Pop / Area)
+plot(MooseDataset$Year, MooseDataset$MooseDensity, 
+     xlab = "year", 
+     ylab = "Moose per sq km", 
+     main = "Moose density in Newfoundland ecoregions over time")
+MooseDataWest <- filter(MooseDataset, Ecoregion == "Western_Forests")
+plot(MooseDataWest$Year, MooseDataWest$MooseDensity, 
+        xlab = "year", 
+        ylab = "Moose per sq km",
+        type = "l",
+        col= "maroon",
+        main = "Moose density in Western Forest region over time")
+Moosedatayear<- filter(MooseDataset, Year == "2020")
+Moosedensity2020<- filter(Moosedatayear, MooseDensity > 2.0)
+arrange(Moosedensity2020, desc(MooseDensity))
+MooseData_final <- MooseDataset %>%
+  filter(Year == 2020) %>%
+  filter(MooseDensity > 2.0) %>%
+  arrange(desc(MooseDensity)) %>%
+  print()
+  Saplings<- na.omit(SaplingStudy)
+sap_reg_browse<- Saplings %>%
+ group_by(Ecoregion) %>%
+ summarize(mean_moose_BrowsingScore=mean(BrowsingScore, na.rm= TRUE))
+print(sap_reg_browse)
+avg_browse_reg<- sap_reg_browse 
+arrange(avg_browse_reg, desc(mean_moose_BrowsingScore)) 
+sap_reg_height<- Saplings %>%
+group_by(Ecoregion) %>%
+summarize(mean_moose_Height=mean(Height, na.rm= TRUE)) %>%
+print()
+sap_reg_height_low<- sap_reg_height %>%
+  filter(mean_moose_Height< 20) %>%
+  arrange(desc(mean_moose_Height)) %>%
+  print()
+#Northern_Peninsula_Forests and Western_Forests have heights less that 20cm
+sap_spe_browse<- Saplings %>%
+  group_by(Species) %>%
+  summarise(BrowsingScore=mean(BrowsingScore, na.rm= TRUE)) %>%
+  print()
+avg_browse_spe<- sap_spe_browse %>%
+  arrange(desc(BrowsingScore)) %>%
+  print()
+#Black_Ash has the highest browsing score, and Black__Spruce has the lowest browsing score
+fir_reg_browse<- Saplings %>%
+  filter(Species=="Balsam_Fir") %>%
+  group_by(Ecoregion) %>%
+  summarise(mean_moose_BrowsingScore=mean(BrowsingScore, na.rm= TRUE)) %>%
+  print()
+barplot(fir_reg_browse$mean_moose_BrowsingScore, names.arg = fir_reg_browse$Ecoregion, xlab = "Ecoregion", ylab = "Mean Moose Browsing Score", main = "Balsam Fir Browsing", col = "plum", cex.names = 0.5, las = 2)
+spruce_reg_browse<- Saplings %>%
+  filter(Species=="Black_Spruce") %>%
+  group_by(Ecoregion) %>%
+  summarise(mean_moose_BrowsingScore=mean(BrowsingScore,na.rm= TRUE)) %>%
+  print()
+barplot(spruce_reg_browse$mean_moose_BrowsingScore, names.arg = spruce_reg_browse$Ecoregion, xlab = "Ecoregion", ylab = "Mean Moose Browsing Score", main = "Black Spruce Browsing", col = "salmon", cex.names = 0.5, las = 2)
+#Black spruce has no browsing in Maritime_Barrens and EasternHyperOceanicBarrens
+#The highest browsing region for both is Nothern_Peninsula_Forests
+sap_reg_tally<- Saplings %>%
+  group_by(Ecoregion) %>%
+  tally() %>% 
+  print()
+sap_spe_tally<- Saplings %>%
+  group_by(Species) %>%
+  tally() %>% 
+  print()
+#I believe that Balsam firs are overrepresented, while Black ash is underrepresented. I also believe StraitOfBelleIsleBarrens could be represented more.
+#Recognizing biases ensures the validity of research findings. It also confirms the effectiveness of conservation strategies.
+```

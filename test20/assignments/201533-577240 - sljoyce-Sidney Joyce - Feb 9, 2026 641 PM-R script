@@ -1,0 +1,161 @@
+install.packages("dplyr")
+library(dplyr)
+moosedata <- read.csv("MoosePopulation.csv")
+View(moosedata)
+moose_clean <- na.omit(moosedata)
+moose_sel <- select(moose_clean, Ecoregion, Year, Area, Estimated_Moose_Pop)
+year_min <- min(moose_sel$Year)
+moose_max <- max(moose_sel$Estimated_Moose_Pop)
+moosedata2 <- mutate(moose_sel, MooseDensity = Estimated_Moose_Pop / Area)
+plot(moosedata2$Year, moosedata2$MooseDensity,
+     xlab = "Year",
+     ylab = "Moose per sq km",
+     main = "Moose density in Newfoundland ecoregions over time")
+moose_west <- filter(moosedata2, Ecoregion == "Western_Forests")
+plot(moose_west$Year, moose_west$MooseDensity,
+     type = "l",
+     xlab = "Year",
+     ylab = "Moose per sq km",
+     main = "Moose density in Western Forests over time")
+moose_2020 <- filter(moosedata2, Year == 2020)
+moose_2020_high <- filter(moose_2020, MooseDensity > 2.0)
+moose_2020_high_byD <- arrange(moose_2020_high, desc(MooseDensity))
+moosefinal <- moosedata2 %>%
+  filter(Year == 2020) %>%
+  filter(MooseDensity > 2.0) %>%
+  arrange(desc(MooseDensity)) %>%
+  print()
+saplings <- read.csv("SaplingStudy.csv")
+sap_clean <- na.omit(saplings)
+sap_reg_browse <- sap_clean %>%
+  group_by(Ecoregion) %>%
+  summarize(AverageBrowsing = mean(BrowsingScore)) %>%
+  print()
+avg_browse_reg <- sap_reg_browse %>%
+  arrange(desc(AverageBrowsing))
+
+# moose browsing pressure varies among ecoregions. 
+# Northern_Peninsula_Forests shows the highest average browsing score,
+# while StraitOffBelleIsLeBarrens shows the lowest browsing intensity.
+
+sap_reg_height <- sap_clean %>%
+  group_by(Ecoregion) %>%
+  summarize(AverageHeight = mean(Height)) %>%
+  print()
+sap_reg_height_low <- sap_reg_height %>%
+  filter(AverageHeight < 20) %>%
+  print()
+
+# Western_Forests and Northern_Peninsula_Forests have average sapling
+# heights below 20cm, indicating these ecoregions are likely experiencing
+# severe browsing pressure by moose.
+
+sap_spe_browse <- sap_clean %>%
+  group_by(Species) %>%
+  summarize(AverageBrowsing = mean(BrowsingScore)) %>%
+  print()
+avg_browse_spe <- sap_spe_browse %>%
+  arrange(desc(AverageBrowsing))
+
+# browsing intensity differs among tree species.
+# Black_Ash has the highest average browsing score, indicating strong
+# moose preference, while Black_Spruce has the lowest average browsing
+#and appears as least preferred.
+
+fir_reg_browse <- sap_clean %>%
+  filter(Species == "Balsam_Fir") %>%
+  group_by(Ecoregion) %>%
+  summarize(AverageBrowsing = mean(BrowsingScore))
+barplot(fir_reg_browse$AverageBrowsing,
+        names.arg = fir_reg_browse$Ecoregion,
+        xlab = "Ecoregion",
+        ylab = "Average browsing intensity",
+        main = "Average moose browsing on Balsam Fir by ecoregion",
+        col = "forestgreen",
+        cex.names = 0.6)
+spruce_reg_browse <- sap_clean %>%
+  filter(Species == "Black_Spruce") %>%
+  group_by(Ecoregion) %>%
+  summarize(AverageBrowsing = mean(BrowsingScore))
+barplot(spruce_reg_browse$AverageBrowsing,
+        names.arg = spruce_reg_browse$Ecoregion,
+        xlab = "Ecoregion",
+        ylab = "Average browsing intensity",
+        main = "Average moose browsing on Black Spruce by ecoregion",
+        col = "darkolivegreen",
+        cex.names = 0.6)
+# across ecoregions, Balsam Fir experiences higher browsing intensity
+# than Black Spruce, suggesting that moose prefer Balsam Fir over Black Spruce.
+sap_reg_tally <- sap_clean %>%
+  group_by(Ecoregion) %>%
+  tally() %>%
+  print()
+sap_spe_tally <- sap_clean %>%
+  group_by(Species) %>%
+  tally() %>%
+  print()
+
+# the SaplingStudy dataset is unevenly distributed.
+# some ecoregions such as Northern_Peninsula_Forests and Western_Forests
+# have higher numbers of sampled saplings compared to others.
+
+# recognizing bias in ecological datasets is important because overrepresented
+# regions or uneven sampling can lead to misleading conclusions about
+# moose feeding behavior and ecosystem processes.
+
+moose_2020b <- moose_clean %>%
+  filter(Year == 2020) %>%
+  mutate(MooseDensity = Estimated_Moose_Pop / Area)
+moose_sap <- left_join(moose_2020b, sap_clean,
+                       by = "Ecoregion",
+                       relationship = "many-to-many")
+sum_spe_browse <- moose_sap %>%
+  group_by(Species, Ecoregion) %>%
+  summarize(
+    AvgBrowsing = mean(BrowsingScore),
+    AvgDensity = mean(MooseDensity)
+  ) %>%
+  print()
+# the results support the researchers’ hypothesis.
+# at lower moose densities, browsing varies widely among species,
+# while at higher densities browsing becomes more uniform,
+# suggesting reduced selectivity under higher competition.
+
+# moose most strongly favour Black Ash and Willow, which show the highest
+# average browsing scores, while Black Spruce is browsed the least.
+
+# a species is not shown in the figure because it did not have enough
+# observations across ecoregions to calculate reliable average values.
+
+collisions2020 <- c(56, 60, 14, 36, 48, 10, 40, 110, 6)
+human_pop <- c(18000, 12000, 4000, 75100, 24000, 3500, 32000, 270000, 2300)
+study_sites <- c("North_Shore_Forests", "Northern_Peninsula_Forests",
+                 "Long_Range_Barrens", "Central_Forests", "Western_Forests",
+                 "EasternHyperOceanicBarrens", "Maritime_Barrens",
+                 "Avalon_Forests", "StraitOfBelleIsleBarrens")
+
+moose_coll <- data.frame(collisions2020, human_pop, study_sites)
+moose_coll2 <- moose_coll %>%
+  rename(Ecoregion = study_sites)
+coll_merge <- left_join(moose_2020, moose_coll2, by = "Ecoregion")
+plot(coll_merge$MooseDensity, coll_merge$collisions2020,
+     xlab = "Moose Density",
+     ylab = "Number of Collisions (2020)",
+     main = "Moose density vs vehicle collisions")
+
+# moose-vehicle collisions generally increase with increasing moose density.
+# Avalon_Forests appears as an outlier due to high human population
+# and road density despite moderate moose density.
+
+coll_merge_per_capita <- coll_merge %>%
+  mutate(coll_per_capita = collisions2020 / human_pop)
+plot(coll_merge_per_capita$human_pop,
+     coll_merge_per_capita$coll_per_capita,
+     xlab = "Human Population",
+     ylab = "Collisions per Capita",
+     main = "Moose collisions per capita vs human population")
+
+# collisions per capita are highest in regions with smaller human populations,
+# which is expected because rural areas overlap more with moose habitat
+# and have fewer mitigation measures.
+

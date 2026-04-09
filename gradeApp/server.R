@@ -9,12 +9,6 @@ function(input, output, session){
   )
 
   # Create main log variable
-  # fullLog <- reactiveVal(read.csv(log_path, colClasses = c("character",
-  #                                                          "character",
-  #                                                          "character",
-  #                                                          "character",
-  #                                                          "character",
-  #                                                          "logical")))
   fullLog <- reactiveFileReader(1000, session, log_path, read.csv,
                                 colClasses = c("character",
                                                "character",
@@ -23,17 +17,11 @@ function(input, output, session){
                                                "character",
                                                "logical"))
 
-  # Create logging variables
-  curLog <- reactiveVal()
-
-  # Parse current log
-  observe({
-    full_log <- fullLog()
+  # Create current log variable
+  curLog <- reactive({
     # Filter current question and student log
-    cur_log <- full_log %>%
-      filter(student == rv$s_index & question == rv$q_index)
-    # Update current log
-    curLog(cur_log)
+    fullLog() %>%
+      filter(student == rv$s_index, question == rv$q_index)
   })
 
   ##### DISPLAYS #####
@@ -45,13 +33,8 @@ function(input, output, session){
 
   # Autograding comments
   output$auto_comments <- renderUI({
-    mess <- students[[rv$s_index]][[rv$q_index]]$auto_message
-    if(is.na(mess)) "" else paste0("Autograder: ", mess)
-  })
-
-  # Display saved message
-  output$ta_comment <- renderUI({
-    textInput("ta_comment", "Feedack", value = curLog()$mess)
+    mess <- students[[rv$s_index]]$questions[[rv$q_index]]$message
+    paste0("Autograder: ", mess)
   })
 
   # Display flagging
@@ -59,15 +42,12 @@ function(input, output, session){
     checkboxInput("flag", "Flag question", value = curLog()$flagged)
   })
 
-  # Display checkboxes
+  # # Display checkboxes
   output$rubric_checkbox <- renderUI({
     cur_rub <- curLog()$rub
-    print(cur_rub)
-    if(cur_rub == "") {
-      sel <- character(0)
-    } else {
-      sel <- cur_rub
-    }
+    # Convert empty strings to 0 length
+    sel <- cur_rub[cur_rub != ""]
+    # Update buttons
     radioButtons("rubric_checkbox", "Rubric",
                  choices = get_choices(),
                  selected = sel)
@@ -75,12 +55,18 @@ function(input, output, session){
 
   # Display last saved date
   output$last_date <- renderText({
-    paste("Last graded: ", curLog()$last_date)
+    paste("Last graded: ", curLog()$last)
   })
 
   # Display grade
   output$score_display <- renderText({
     paste("Question score: ", score())
+  })
+
+  # Display plots
+  output$pdfview <- renderUI({
+    tags$iframe(style="height:600px; width:100%",
+                src=paste0("my_plots.pdf#page=", input$page_num))
   })
 
   ##### RUBRIC #####
@@ -133,21 +119,24 @@ function(input, output, session){
   # Capture rubric choice with mouse and save
   observeEvent(input$rubric_checkbox, {
 
-    if(length(input$rubric_checkbox) == 0) return()
-    if(input$rubric_checkbox == curLog()$rub) return()
-
-    print("saving rubric")
-
     # Read current and full log
     full_log <- fullLog()
     cur_log <- curLog()
+    cur_rub <- cur_log$rub
+
+    if(length(cur_rub) == 0){
+
+    } else if (length(input$rubric_checkbox) == 0) {
+      return()
+
+    } else if(input$rubric_checkbox == cur_rub) {
+      return()
+    } else {
+    }
 
     # Make changes
     cur_log$rub <- input$rubric_checkbox
     cur_log$last <- as.character(Sys.time())
-
-    # Save current log reactive
-    curLog(cur_log)
 
     # Modify full log
     full_log <- full_log %>%
@@ -155,9 +144,6 @@ function(input, output, session){
 
     # Save to file
     write.csv(full_log, log_path, row.names = FALSE)
-
-    # Reread file
-    fullLog()
 
   })
 
@@ -185,70 +171,26 @@ function(input, output, session){
     # Make changes
     cur_log$flagged <- input$flag
 
-    # Save current log reactive
-    curLog(cur_log)
-
     # Modify full log
     full_log <- full_log %>%
       rows_update(cur_log, by = c("student", "question"))
 
     # Save to file
     write.csv(full_log, log_path, row.names = FALSE)
-
-    # Reread file
-    fullLog()
   })
-
-  # Save comment
-  observeEvent(input$ta_comment, {
-
-    #if(input$ta_comment == curLog()$mess) return()
-
-    print("saving comment")
-
-    # Read current and full log
-    full_log <- fullLog()
-    cur_log <- curLog()
-
-    # Make changes
-    cur_log$mess <- input$ta_comment
-
-    # Save current log reactive
-    curLog(cur_log)
-
-    # Modify full log
-    full_log <- full_log %>%
-      rows_update(cur_log, by = c("student", "question"))
-
-    # Save to file
-    write.csv(full_log, log_path, row.names = FALSE)
-
-    # Reread file
-    fullLog()
-  })
-
-  # Grading progress
-  # output$progress <- shiny::renderUI({
-  #   div(
-  #     HTML(paste0(rv$graded/tot_student*100), " % complete<br>"),
-  #     HTML(paste0(tot_student - rv$graded), " students remaining<br>"),
-  #     HTML(paste0(tot_student*tot_question - length(rv$grades), " questions remaining")),
-  #     HTML("</p>")
-  #   )
-  # })
 
   ##### ANSWER AND SOLUTION #####
 
   output$s_call <- renderText({
-    as.character(students[[rv$s_index]][[rv$q_index]]$answer_call)
+    deparse(students[[rv$s_index]]$questions[[rv$q_index]]$call)
   })
 
   output$s_answer <- renderPrint({
-    students[[rv$s_index]][[rv$q_index]]$answer
+    students[[rv$s_index]]$questions[[rv$q_index]]$answer
   })
 
   output$a_call <- renderText({
-    as.character(answers[[rv$q_index]]$answer_call)
+    deparse(answers[[rv$q_index]]$answer_call)
   })
 
   output$a_answer <- renderPrint({
@@ -258,12 +200,13 @@ function(input, output, session){
   ##### EDITOR #####
 
   # Get student script when student changes
-  student_script <- reactive({
-    assignment_path <- students[[rv$s_index]]$path
-    print(assignment_path)
-    script_text <- paste(readLines(assignment_path), collapse = '\n')
-    return(script_text)
-  })
+  student_script <- reactiveFileReader(1000, session,
+                                       filePath = function() {
+                                         paste0(ass_path,  students[[rv$s_index]]$script_path)
+                                       },
+                                       readFunc = function(x) {
+                                         paste(readLines(x), collapse = '\n')
+                                       })
 
   # Update script in editor
   observeEvent(student_script(), {

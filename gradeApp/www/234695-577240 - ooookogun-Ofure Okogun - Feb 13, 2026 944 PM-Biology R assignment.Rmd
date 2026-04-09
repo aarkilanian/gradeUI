@@ -1,0 +1,188 @@
+---
+title: "Biology R assignment"
+author: "Ofure Okogun"
+date: "2026-01-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+``` {r bio}
+#install.packages("dplyr")
+library(dplyr)
+MooseDataset<- na.omit(MooseDataset)
+MooseDataset<- select(MooseDataset, Ecoregion, Year, Area, Estimated_Moose_Pop)
+min(MooseDataset$Year)
+#the oldest year is 1904
+max(MooseDataset$Estimated_Moose_Pop)
+#the highest Estimated_Moose_Pop is 41250
+MooseDataset <- mutate(MooseDataset, MooseDensity = Estimated_Moose_Pop / Area)
+plot(MooseDataset$Year, MooseDataset$MooseDensity, 
+     xlab = "year", 
+     ylab = "Moose per sq km", 
+     main = "Moose density in Newfoundland ecoregions over time")
+MooseDataWest <- filter(MooseDataset, Ecoregion == "Western_Forests")
+plot(MooseDataWest$Year, MooseDataWest$MooseDensity, 
+        xlab = "year", 
+        ylab = "Moose per sq km",
+        type = "l",
+        col= "maroon",
+        main = "Moose density in Western Forest region over time")
+Moosedatayear<- filter(MooseDataset, Year == "2020")
+Moosedensity2020<- filter(Moosedatayear, MooseDensity > 2.0)
+arrange(Moosedensity2020, desc(MooseDensity))
+MooseData_final <- MooseDataset %>%
+  filter(Year == 2020) %>%
+  filter(MooseDensity > 2.0) %>%
+  arrange(desc(MooseDensity)) %>%
+  print()
+  Saplings<- na.omit(SaplingStudy)
+sap_reg_browse<- Saplings %>%
+ group_by(Ecoregion) %>%
+ summarize(mean_moose_BrowsingScore=mean(BrowsingScore, na.rm= TRUE))
+print(sap_reg_browse)
+avg_browse_reg<- sap_reg_browse 
+arrange(avg_browse_reg, desc(mean_moose_BrowsingScore)) 
+sap_reg_height<- Saplings %>%
+group_by(Ecoregion) %>%
+summarize(mean_moose_Height=mean(Height, na.rm= TRUE)) %>%
+print()
+sap_reg_height_low<- sap_reg_height %>%
+  filter(mean_moose_Height< 20) %>%
+  arrange(desc(mean_moose_Height)) %>%
+  print()
+#Northern_Peninsula_Forests and Western_Forests have heights less that 20cm
+sap_spe_browse<- Saplings %>%
+  group_by(Species) %>%
+  summarise(BrowsingScore=mean(BrowsingScore, na.rm= TRUE)) %>%
+  print()
+avg_browse_spe<- sap_spe_browse %>%
+  arrange(desc(BrowsingScore)) %>%
+  print()
+#Black_Ash has the highest browsing score, and Black__Spruce has the lowest browsing score
+fir_reg_browse<- Saplings %>%
+  filter(Species=="Balsam_Fir") %>%
+  group_by(Ecoregion) %>%
+  summarise(mean_moose_BrowsingScore=mean(BrowsingScore, na.rm= TRUE)) %>%
+  print()
+barplot(fir_reg_browse$mean_moose_BrowsingScore, names.arg = fir_reg_browse$Ecoregion, xlab = "Ecoregion", ylab = "Mean Moose Browsing Score", main = "Balsam Fir Browsing", col = "plum", cex.names = 0.5, las = 2)
+spruce_reg_browse<- Saplings %>%
+  filter(Species=="Black_Spruce") %>%
+  group_by(Ecoregion) %>%
+  summarise(mean_moose_BrowsingScore=mean(BrowsingScore,na.rm= TRUE)) %>%
+  print()
+barplot(spruce_reg_browse$mean_moose_BrowsingScore, names.arg = spruce_reg_browse$Ecoregion, xlab = "Ecoregion", ylab = "Mean Moose Browsing Score", main = "Black Spruce Browsing", col = "salmon", cex.names = 0.5, las = 2)
+#Black spruce has no browsing in Maritime_Barrens and EasternHyperOceanicBarrens
+#The highest browsing region for both is Nothern_Peninsula_Forests
+sap_reg_tally<- Saplings %>%
+  group_by(Ecoregion) %>%
+  tally() %>% 
+  print()
+sap_spe_tally<- Saplings %>%
+  group_by(Species) %>%
+  tally() %>% 
+  print()
+#I believe that Balsam firs are overrepresented, while Black ash is underrepresented. I also believe StraitOfBelleIsleBarrens could be represented more.
+#Recognizing biases ensures the validity of research findings. It also confirms the effectiveness of conservation strategies.
+moose_clean <- na.omit(MooseDataset)  
+moose_2020b <- moose_clean %>%
+  filter(Year == 2020) %>%
+  mutate(MooseDensity = Estimated_Moose_Pop / Area)
+  View(moose_2020b)
+  sap_clean <- na.omit(SaplingStudy)
+moose_sap <- left_join(moose_2020b, sap_clean, by = "Ecoregion", relationship = "many-to-many")
+View(moose_sap)
+sum_spe_browse <- moose_sap %>%
+  group_by(Species, Ecoregion) %>%
+  summarize(
+    mean_BrowsingScore = mean(BrowsingScore, na.rm = TRUE),
+    mean_MooseDensity  = mean(MooseDensity, na.rm = TRUE),
+    .groups = "drop") %>%
+  print()
+install.packages("ggplot2")        
+library(ggplot2) 
+ggplot(sum_spe_browse, aes(x = mean_MooseDensity, 
+                           y = mean_BrowsingScore, 
+                           color = Species)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Mean Moose Density", 
+       y = "Mean Browsing Score", 
+       color = "Tree Species") +
+  theme_minimal()
+#Yes, evidence supports the researchers hypothesis.The moose are selective at low density and generalist at high density.
+#Moose favour Balsam_Fir more and Black_Ash less.
+#Black_ash is not shown on the figure because it has a low moose browsing number.
+  
+  ecoregion      <- c("Northern Peninsula", "Long Range Mountains", 
+                    "Central Newfoundland", "Avalon Forest", 
+                    "Maritime Barrens")
+                    
+collisions2020 <- c(15, 22, 40, 8, 12)
+
+human_pop      <- c(5000, 8000, 45000, 3000, 6000)
+
+moose_coll <- data.frame(Ecoregion = ecoregion, 
+                         collisions2020 = collisions2020, 
+                         human_pop = human_pop)
+                         
+names(moose_coll)                  
+
+moose_coll2 <- moose_coll
+
+moose_2020 <- moose_clean %>%
+  filter(Year == 2020) %>%
+  mutate(MooseDensity = Estimated_Moose_Pop / Area)
+ moose_2020 <- moose_2020 %>%
+  mutate(Ecoregion_match = case_when(
+    Ecoregion == "Northern_Peninsula_Forests" ~ "Northern Peninsula",
+    Ecoregion == "Long_Range_Barrens"        ~ "Long Range Mountains",
+    Ecoregion == "Central_Forests"            ~ "Central Newfoundland",
+    Ecoregion == "Avalon_Forests"             ~ "Avalon Forest",
+    Ecoregion == "Maritime_Barrens"           ~ "Maritime Barrens",
+    TRUE                                      ~ NA_character_
+  ))
+  
+  moose_2020_matched <- moose_2020 %>%
+  filter(!is.na(Ecoregion_match))
+  
+  coll_merge <- left_join(moose_2020_matched, moose_coll2, 
+                        by = c("Ecoregion_match" = "Ecoregion"))
+                        
+View(coll_merge)
+
+plot(coll_merge$MooseDensity, coll_merge$collisions2020,
+     xlab = "Moose Density (per km²)", 
+     ylab = "Number of Collisions (2020)",
+     main = "Moose-Vehicle Collisions vs. Moose Density")
+ #Moose tend to have less collisions at lower densities.The outlier is 2.0.    
+coll_merge_per_capita <- coll_merge %>%
+  mutate(coll_per_capita = collisions2020 / human_pop)
+  
+  plot(coll_merge_per_capita$human_pop, coll_merge_per_capita$coll_per_capita,
+     xlab = "Human Population", 
+     ylab = "Collisions Per Capita",
+     main = "Moose Collisions Per Capita vs. Human Population")
+  #Moose tend to browse generally in higher densities. This corresponds with Newfoundland, which has a high Moose population. There is also an increased number of Moose-Human collisions.
+```

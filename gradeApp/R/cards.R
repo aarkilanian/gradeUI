@@ -28,14 +28,10 @@ card_rubric <- bslib::card(
   bslib::card_header("Rubric"),
   uiOutput("auto_comments", class = "auto-coms"),
   uiOutput("rubric_checkbox"),
-  textOutput("score_display")
-  )
-
-card_feedback<- bslib::card(
-  bslib::card_header("Feedback"),
-  uiOutput("ta_comment"),
+  textOutput("score_display"),
+  textOutput("last_date"),
   checkboxInput("flag", "Flag question", FALSE)
-)
+  )
 
 card_progress <- bslib::card(
   bslib::card_header("Progress"),
@@ -55,39 +51,19 @@ short_nav_sym <- div(
   )
 
 short_nav_desc <- div(
-  HTML("next question<br>"),
-  HTML("previous question<br>"),
   HTML("next student<br>"),
-  HTML("previous student<br>")
+  HTML("previous student<br>"),
+  HTML("next question<br>"),
+  HTML("previous question<br>")
 )
 
 short_grade_sym <- div(
   strong("1-9"),
   HTML("<br>"),
-  strong("f"),
-  HTML("<br>"),
-  strong("c"),
-  HTML("<br>"),
-  strong("Esc")
+  strong("f")
 )
 
 short_grade_desc <- div(
   HTML("select rubric items<br>"),
-  HTML("flag question<br>"),
-  HTML("go to feedback<br>"),
-  HTML("leave feedback<br>")
-)
-
-short_extra_sym <- div(
-  strong("e"),
-  HTML("<br>"),
-  strong("alt+e"),
-  HTML("<br>"),
-  strong("\u21b5")
-)
-
-short_extra_desc <- div(
-  HTML("enter edit mode<br>"),
-  HTML("exit edit mode<br>"),
-  HTML("force save<br>")
+  HTML("flag question<br>")
 )

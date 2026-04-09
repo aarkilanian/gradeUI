@@ -1,4 +1,6 @@
-##### Resources #####
+##### Setup #####
+
+# Load packages
 require(dplyr)
 require(lubridate)
 require(bslib)
@@ -6,23 +8,35 @@ require(shiny)
 require(shinyAce)
 require(shinyjs)
 require(shinyFeedback)
+
+# Source functions
 source("R/cards.R")
 
-# JS refocus function
+# Read grading rubric
+rubric <- read.csv("../data/1002_rubric.csv") %>%
+  filter(question != "1") %>%
+  mutate(question = question - 1)
+
+# Read autograding output
+students <- readRDS("../data/autograded.rda")
+
+# Read solutions
+answers <- readRDS("../data/1002_answers.rda")
+
+# Set path to submission directory
+ass_path <- "www/"
+
+# Read descriptive data
+tot_student <- length(students)
+tot_question <- length(answers)
+
+# JavaScript refocus function
 jscode <- "
 shinyjs.refocus = function(e_id) {
   document.getElementById(e_id).focus();
 }"
 
-# Read files
-rubric <- read.csv("../data/ex_rubric.csv")
-students <- readRDS("../data/students.rda")
-answers <- readRDS("../data/answers.rda")
-ass_path <- "../data/ex_assignments/"
-
-# Read descriptive data
-tot_student <- length(students)
-tot_question <- length(answers)
+##### Log #####
 
 # Set log path
 log_path <- "../data/gradelog.csv"
@@ -56,11 +70,13 @@ if (!file.exists(log_path)) {
 
 }
 
+##### Retrieve progress #####
+
 # Get last graded student and question
 if(any(gradelog$last != "")){
   recent <- which(gradelog$last == max(gradelog$last))
-  last_q <- gradelog[recent,]$question
-  last_s <- gradelog[recent,]$student
+  last_q <- as.numeric(gradelog[recent,]$question)
+  last_s <- as.numeric(gradelog[recent,]$student)
 
 } else {
   last_q <- 1
